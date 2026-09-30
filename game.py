@@ -12,19 +12,23 @@ PHASES = [random.uniform(0, math.tau) for _ in range(3)]
 
 
 def sky_color(wave):
-    """Return an (r, g, b) sky colour for the current wave, or None for the default."""
-    pass
-
+    """Change the sky colour as waves progress."""
+    colors = [
+        (5, 5, 20),     # Wave 1: dark blue
+        (25, 10, 45),   # Wave 2: purple
+        (10, 35, 50),   # Wave 3: teal
+        (45, 15, 25),   # Wave 4: dark red
+        (35, 35, 60),   # Wave 5: lighter blue
+    ]
+    return colors[(wave - 1) % len(colors)]
 
 def on_humanoid_rescued(humanoid):
-    """Called when the player catches a falling humanoid; add a bonus or celebration here."""
-    pass
-
+    """Display a rescue celebration for two seconds."""
+    humanoid.rescue_timer = 2.0
 
 def bonus_life_threshold():
-    """Return a score value at which the player earns an extra life, or None to disable bonus lives."""
-    pass
-
+    """Award an extra life at each 10,000-point milestone."""
+    return 10000
 
 def wrap_delta(a, b):
     """Shortest signed distance from world x=a to world x=b on a wrapping world."""
@@ -44,6 +48,9 @@ class Humanoid:
         self.vy = 0.0
 
     def update(self, dt):
+        self.rescue_timer = max(
+            0.0, getattr(self, "rescue_timer", 0.0) - dt
+        )
         if self.state == "falling":
             self.vy += 300 * dt
             self.y += self.vy * dt
@@ -203,7 +210,7 @@ class Game:
         blips += [(l.x, l.y, (255, 90, 90) if l.mutant else (230, 200, 60)) for l in self.landers]
         blips.append((self.player.x, self.player.y, (255, 255, 255)))
         for x, y, color in blips:
-            rx = self.screen_x(x) % VIEW_W
+            rx = (x % WORLD_W) / WORLD_W * VIEW_W
             ry = (y - PLAY_TOP) / (VIEW_H - PLAY_TOP) * (RADAR_H - 8) + 4
             pygame.draw.rect(screen, color, (rx - 2, ry - 2, 4, 4))
 
@@ -216,6 +223,14 @@ class Game:
             sx = self.screen_x(humanoid.x)
             if -20 < sx < VIEW_W + 20:
                 pygame.draw.rect(screen, (90, 230, 120), (sx - 3, humanoid.y - 10, 6, 14))
+                if getattr(humanoid, "rescue_timer", 0.0) > 0:
+                    label = self.font.render(
+                        "+500 RESCUED!", True, (255, 255, 120)
+                    )
+                    screen.blit(
+                        label,
+                        label.get_rect(center=(sx, humanoid.y - 30))
+                    )
         for lander in self.landers:
             sx = self.screen_x(lander.x)
             if -20 < sx < VIEW_W + 20:
